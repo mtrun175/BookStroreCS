@@ -35,3 +35,4 @@ C:\Users\Mtrun\BookStore\obj\Debug\net9.0\BookStore.pdb
 C:\Users\Mtrun\BookStore\obj\Debug\net9.0\BookStore.genruntimeconfig.cache
 C:\Users\Mtrun\BookStore\obj\Debug\net9.0\ref\BookStore.dll
 C:\Users\Mtrun\BookStore\bin\Debug\net9.0\Spectre.Console.dll
+C:\Users\Mtrun\BookStore\obj\Debug\net9.0\BookStore.sourcelink.json

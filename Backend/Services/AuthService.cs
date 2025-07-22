@@ -14,16 +14,16 @@ namespace BookStoreConsoleApp.Services
         {
             AnsiConsole.Clear();
             ShowTitle("📝 ĐĂNG KÝ TÀI KHOẢN MỚI", "magenta");
-
-            AnsiConsole.MarkupLine("[grey]💡 Nhấn [bold]Ctrl + Enter[/] bất kỳ lúc nào để quay về trang chính.[/]");
-            string fullName, email, password, phone, address;
+            AnsiConsole.MarkupLine("[grey]💡 Nhấn [bold]Esc[/] để quay về trang chính bất kỳ lúc nào.[/]");
+            string fullName, email, password, phone, address, addressdetail;
 
             // Họ tên
             while (true)
             {
-                CheckExitShortcut();
+                //CheckExitShortcut();
                 AnsiConsole.Markup("[cyan]👤 Nhập họ tên: [/]");
-                fullName = Console.ReadLine()?.Trim();
+                fullName = ReadLineWithEscape()?.Trim();
+                if (fullName == "__BACK") return;
                 if (!string.IsNullOrWhiteSpace(fullName)) break;
                 ShowError("Họ tên không được để trống.");
             }
@@ -31,9 +31,10 @@ namespace BookStoreConsoleApp.Services
             // Email
             while (true)
             {
-                CheckExitShortcut();
+                //CheckExitShortcut();
                 AnsiConsole.Markup("[cyan]📧 Nhập email (abc@gmail.com): [/]");
-                email = Console.ReadLine()?.Trim();
+                email = ReadLineWithEscape()?.Trim();
+                if (email == "__BACK") return;
                 if (Regex.IsMatch(email ?? "", @"^[\w\.-]+@gmail\.com$")) break;
                 ShowError("Email không hợp lệ. Vui lòng nhập lại.");
             }
@@ -41,19 +42,33 @@ namespace BookStoreConsoleApp.Services
             // Mật khẩu
             while (true)
             {
-                CheckExitShortcut();
+                //CheckExitShortcut();
                 AnsiConsole.Markup("[cyan]🔒 Nhập mật khẩu (8 ký tự, chữ hoa, số, ký tự đặc biệt): [/]");
                 password = ReadPassword();
+                if (password == "__BACK") return;
                 if (Regex.IsMatch(password ?? "", @"^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$")) break;
                 ShowError("Mật khẩu không hợp lệ. Ví dụ: Pa$$w0rd");
             }
+            // Nhập lại mật khẩu để xác nhận
+            while (true)
+            {
+                AnsiConsole.Markup("[cyan]🔁 Nhập lại mật khẩu để xác nhận: [/] ");
+                var confirmPassword = ReadPassword();
+                if (confirmPassword == "__BACK") return;
+
+                if (confirmPassword == password) break;
+
+                ShowError("❌ Mật khẩu xác nhận không khớp. Vui lòng thử lại.");
+            }
+
 
             // SĐT
             while (true)
             {
-                CheckExitShortcut();
+                //CheckExitShortcut();
                 AnsiConsole.Markup("[cyan]📱 Nhập số điện thoại (9-11 số): [/]");
-                phone = Console.ReadLine()?.Trim();
+                phone = ReadLineWithEscape()?.Trim();
+                if (phone == "__BACK") return;
                 if (Regex.IsMatch(phone ?? "", @"^[0-9]{9,11}$")) break;
                 ShowError("Số điện thoại không hợp lệ.");
             }
@@ -61,11 +76,21 @@ namespace BookStoreConsoleApp.Services
             // Địa chỉ
             while (true)
             {
-                CheckExitShortcut();
+                //CheckExitShortcut();
                 AnsiConsole.Markup("[cyan]🏠 Nhập địa chỉ: [/]");
-                address = Console.ReadLine()?.Trim();
+                address = ReadLineWithEscape()?.Trim();
+                if (address == "__BACK") return;
                 if (!string.IsNullOrWhiteSpace(address)) break;
                 ShowError("Địa chỉ không được để trống.");
+            }
+            while (true)
+            {
+                //CheckExitShortcut();
+                AnsiConsole.Markup("[cyan]🏠 Nhập địa chỉ chi tiết: [/]");
+                addressdetail = ReadLineWithEscape()?.Trim();
+                if (addressdetail == "__BACK") return;
+                if (!string.IsNullOrWhiteSpace(addressdetail)) break;
+                ShowError("Địa chỉ chi tiết không được để trống.");
             }
 
             try
@@ -86,14 +111,15 @@ namespace BookStoreConsoleApp.Services
 
                 var hashed = HashPassword(password);
                 string insertQuery = @"INSERT INTO customers 
-                    (FullName, Email, Password, PhoneNumber, Address, Status, Is_admin, Canceled_orders, Total_orders)
-                    VALUES (@FullName, @Email, @Password, @PhoneNumber, @Address, 0, 0, 0, 0)";
+                    (FullName, Email, Password, PhoneNumber, Address, AddressDetail, Status, Is_admin, Canceled_orders, Total_orders)
+                    VALUES (@FullName, @Email, @Password, @PhoneNumber, @Address, @AddressDetail, 0, 0, 0, 0)";
                 using var cmd = new MySqlCommand(insertQuery, connection);
                 cmd.Parameters.AddWithValue("@FullName", fullName);
                 cmd.Parameters.AddWithValue("@Email", email);
                 cmd.Parameters.AddWithValue("@Password", hashed);
                 cmd.Parameters.AddWithValue("@PhoneNumber", phone);
                 cmd.Parameters.AddWithValue("@Address", address);
+                cmd.Parameters.AddWithValue("@AddressDetail", addressdetail);
                 cmd.ExecuteNonQuery();
 
                 ShowSuccess("🎉 Đăng ký thành công!");
@@ -106,46 +132,207 @@ namespace BookStoreConsoleApp.Services
             PauseScreen();
         }
 
+        // public static string? Login(string connectionString)
+        // {
+        //     AnsiConsole.Clear();
+        //     ShowTitle("🔑 ĐĂNG NHẬP", "blue");
+        //     AnsiConsole.MarkupLine("[grey]💡 Nhấn [bold]Ctrl + Enter[/] để quay về trang chính.[/]");
+
+        //     for (int attempt = 1; attempt <= 3; attempt++)
+        //     {
+        //         //CheckExitShortcut();
+        //         AnsiConsole.Markup("[cyan]📧 Email: [/]");
+        //         string? email = ReadLineWithEscape()?.Trim();
+
+        //         AnsiConsole.Markup("[cyan]🔒 Mật khẩu: [/]");
+        //         var password = ReadPassword();
+        //         var hashed = HashPassword(password);
+
+        //         try
+        //         {
+        //             using var connection = new MySqlConnection(connectionString);
+        //             connection.Open();
+
+        //             var query = "SELECT FullName, Is_admin FROM customers WHERE Email = @Email AND Password = @Password";
+        //             using var cmd = new MySqlCommand(query, connection);
+        //             cmd.Parameters.AddWithValue("@Email", email);
+        //             cmd.Parameters.AddWithValue("@Password", hashed);
+        //             using var reader = cmd.ExecuteReader();
+
+        //             if (reader.Read())
+        //             {
+        //                 int isAdmin = Convert.ToInt32(reader["Is_admin"]);
+
+        //                 ShowSuccess("✅ Đăng nhập thành công!");
+        //                 //PauseScreen();
+
+        //                 if (isAdmin == 1)
+        //                 {
+        //                     DashboardService.DisplayDashboard(connectionString, null);
+        //                     return null;
+        //                 }
+
+        //                 return email; // ✅ TRẢ VỀ EMAIL CHUẨN
+        //             }
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             ShowError($"Lỗi hệ thống: {ex.Message}");
+        //             return null;
+        //         }
+
+        //         ShowError($"❌ Sai thông tin. Thử lại: {attempt}/3");
+        //     }
+
+        //     ShowError("⛔ Đăng nhập thất bại sau 3 lần.");
+        //     PauseScreen();
+        //     return null;
+        // }
+
+        // public static string? Login(string connectionString)
+        // {
+        //     AnsiConsole.Clear();
+        //     ShowTitle("🔑 ĐĂNG NHẬP", "blue");
+        //     AnsiConsole.MarkupLine("[grey]💡 Nhấn [bold]Esc[/] để quay về trang chính bất kỳ lúc nào.[/]");
+
+        //     for (int attempt = 1; attempt <= 3; attempt++)
+        //     {
+        //         // 📧 Nhập email
+        //         string? email;
+        //         while (true)
+        //         {
+        //             AnsiConsole.Markup("[cyan]📧 Nhập email (abc@gmail.com): [/] ");
+        //             email = ReadLineWithEscape()?.Trim();
+        //             if (email == "__BACK") return null;
+        //             if (Regex.IsMatch(email ?? "", @"^[\w\.-]+@gmail\.com$")) break;
+
+        //             ShowError("Email không hợp lệ. Vui lòng nhập lại.");
+        //         }
+
+        //         // 🔒 Nhập mật khẩu
+        //         string password;
+        //         while (true)
+        //         {
+        //             AnsiConsole.Markup("[cyan]🔒 Nhập mật khẩu: [/] ");
+        //             password = ReadPassword();
+        //             if (password == "__BACK") return null;
+        //             if (!string.IsNullOrWhiteSpace(password)) break;
+
+        //             ShowError("Mật khẩu không được để trống.");
+        //         }
+
+        //         string hashed = HashPassword(password);
+
+        //         try
+        //         {
+        //             using var connection = new MySqlConnection(connectionString);
+        //             connection.Open();
+
+        //             // string query = "SELECT FullName, Is_admin FROM customers WHERE Email = @Email AND Password = @Password";
+        //             string query = "SELECT FullName, Is_admin, Status FROM customers WHERE Email = @Email AND Password = @Password";
+
+        //             using var cmd = new MySqlCommand(query, connection);
+        //             cmd.Parameters.AddWithValue("@Email", email);
+        //             cmd.Parameters.AddWithValue("@Password", hashed);
+
+        //             using var reader = cmd.ExecuteReader();
+        //             if (reader.Read())
+        //             {
+        //                 int isAdmin = Convert.ToInt32(reader["Is_admin"]);
+        //                 ShowSuccess("✅ Đăng nhập thành công!");
+
+        //                 if (isAdmin == 1)
+        //                 {
+        //                     DashboardService.DisplayDashboard(connectionString, null);
+        //                     return null;
+        //                 }
+
+        //                 return email;
+        //             }
+        //             else
+        //             {
+        //                 ShowError($"❌ Sai thông tin. Thử lại: {attempt}/3");
+        //             }
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             ShowError($"Lỗi hệ thống: {ex.Message}");
+        //             return null;
+        //         }
+        //     }
+
+        //     ShowError("⛔ Đăng nhập thất bại sau 3 lần.");
+        //     PauseScreen();
+        //     return null;
+        // }
         public static string? Login(string connectionString)
         {
             AnsiConsole.Clear();
             ShowTitle("🔑 ĐĂNG NHẬP", "blue");
-            AnsiConsole.MarkupLine("[grey]💡 Nhấn [bold]Ctrl + Enter[/] để quay về trang chính.[/]");
+            AnsiConsole.MarkupLine("[grey]💡 Nhấn [bold]Esc[/] để quay về trang chính bất kỳ lúc nào.[/]");
 
             for (int attempt = 1; attempt <= 3; attempt++)
             {
-                CheckExitShortcut();
-                AnsiConsole.Markup("[cyan]📧 Email: [/]");
-                string? email = Console.ReadLine()?.Trim();
+                // 📧 Nhập email
+                string? email;
+                while (true)
+                {
+                    AnsiConsole.Markup("[cyan]📧 Nhập email (abc@gmail.com): [/] ");
+                    email = ReadLineWithEscape()?.Trim();
+                    if (email == "__BACK") return null;
+                    if (Regex.IsMatch(email ?? "", @"^[\w\.-]+@gmail\.com$")) break;
+                    ShowError("Email không hợp lệ. Vui lòng nhập lại.");
+                }
 
-                AnsiConsole.Markup("[cyan]🔒 Mật khẩu: [/]");
-                var password = ReadPassword();
-                var hashed = HashPassword(password);
+                // 🔒 Nhập mật khẩu
+                string password;
+                while (true)
+                {
+                    AnsiConsole.Markup("[cyan]🔒 Nhập mật khẩu: [/] ");
+                    password = ReadPassword();
+                    if (password == "__BACK") return null;
+                    if (!string.IsNullOrWhiteSpace(password)) break;
+                    ShowError("Mật khẩu không được để trống.");
+                }
+
+                string hashed = HashPassword(password);
 
                 try
                 {
                     using var connection = new MySqlConnection(connectionString);
                     connection.Open();
 
-                    var query = "SELECT FullName, Is_admin FROM customers WHERE Email = @Email AND Password = @Password";
+                    string query = "SELECT FullName, Is_admin, Status FROM customers WHERE Email = @Email AND Password = @Password";
                     using var cmd = new MySqlCommand(query, connection);
                     cmd.Parameters.AddWithValue("@Email", email);
                     cmd.Parameters.AddWithValue("@Password", hashed);
-                    using var reader = cmd.ExecuteReader();
 
+                    using var reader = cmd.ExecuteReader();
                     if (reader.Read())
                     {
-                        var name = reader.GetString("FullName");
                         int isAdmin = Convert.ToInt32(reader["Is_admin"]);
+                        int status = Convert.ToInt32(reader["Status"]);
 
-                        ShowSuccess("✅ Đăng nhập thành công!");
-                        PauseScreen();
-                        if (isAdmin == 1)
+                        if (status == 1)
                         {
-                            DashboardService.DisplayDashboard(connectionString);
+                            ShowError("⛔ Tài khoản của bạn đã bị khóa. Vui lòng đăng nhập bằng tài khoản khác.");
+                            PauseScreen();
                             return null;
                         }
-                        else return name;
+
+                        ShowSuccess("✅ Đăng nhập thành công!");
+
+                        if (isAdmin == 1)
+                        {
+                            DashboardService.DisplayDashboard(connectionString, null);
+                            return null;
+                        }
+
+                        return email;
+                    }
+                    else
+                    {
+                        ShowError($"❌ Sai thông tin. Thử lại: {attempt}/3");
                     }
                 }
                 catch (Exception ex)
@@ -153,8 +340,6 @@ namespace BookStoreConsoleApp.Services
                     ShowError($"Lỗi hệ thống: {ex.Message}");
                     return null;
                 }
-
-                ShowError($"❌ Sai thông tin. Thử lại: {attempt}/3");
             }
 
             ShowError("⛔ Đăng nhập thất bại sau 3 lần.");
@@ -162,46 +347,9 @@ namespace BookStoreConsoleApp.Services
             return null;
         }
 
-        public static void ShowUserInfo(string username, string connectionString)
-        {
-            ShowTitle("👤 THÔNG TIN TÀI KHOẢN", "teal");
 
-            try
-            {
-                using var connection = new MySqlConnection(connectionString);
-                connection.Open();
 
-                var query = "SELECT * FROM customers WHERE FullName = @FullName";
-                using var cmd = new MySqlCommand(query, connection);
-                cmd.Parameters.AddWithValue("@FullName", username);
 
-                using var reader = cmd.ExecuteReader();
-                if (reader.Read())
-                {
-                    var panel = new Panel($"""
-                    [bold yellow]👤 Họ tên:[/] {reader["FullName"]}
-                    [bold yellow]📧 Email:[/] {reader["Email"]}
-                    [bold yellow]📱 SĐT:[/] {reader["PhoneNumber"]}
-                    [bold yellow]🏠 Địa chỉ:[/] {reader["Address"]}
-                    [bold yellow]❌ Đơn huỷ:[/] {reader["Canceled_orders"]}
-                    [bold yellow]📦 Tổng đơn:[/] {reader["Total_orders"]}
-                    [bold yellow]🕒 Ngày tạo:[/] {reader["created_at"]}
-                    """).Border(BoxBorder.Rounded).Header("🗂️ Hồ sơ người dùng");
-
-                    AnsiConsole.Write(panel);
-                }
-                else
-                {
-                    ShowError("Không tìm thấy người dùng.");
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowError($"Lỗi hệ thống: {ex.Message}");
-            }
-
-            PauseScreen();
-        }
 
         private static void ShowTitle(string title, string color)
         {
@@ -215,28 +363,76 @@ namespace BookStoreConsoleApp.Services
         private static void ShowError(string msg) =>
             AnsiConsole.MarkupLine($"[bold red]{msg}[/]");
 
-        private static void CheckExitShortcut()
+        // private static void CheckExitShortcut()
+        // {
+        //     while (Console.KeyAvailable)
+        //     {
+        //         var key = Console.ReadKey(true);
+        //         if (key.Key == ConsoleKey.Escape)
+        //         {
+        //             AnsiConsole.Markup("[yellow]❓ Bạn muốn quay lại trang chính? (Y/N): [/]");
+
+        //             var confirm = Console.ReadKey(true);
+        //             if (confirm.Key == ConsoleKey.Y)
+        //             {
+        //                 AnsiConsole.MarkupLine("\n[green]👋 Đã quay về trang chính![/]");
+        //                 PauseScreen();
+        //                 Environment.Exit(0);
+        //             }
+        //             else
+        //             {
+        //                 ShowSuccess("👍 Tiếp tục thao tác...");
+        //             }
+        //         }
+        //     }
+        // }
+        private static string? ReadLineWithEscape()
         {
-            if (Console.KeyAvailable)
+            var input = new StringBuilder();
+            ConsoleKeyInfo key;
+
+            while (true)
             {
-                var key = Console.ReadKey(true);
-                if (key.Modifiers.HasFlag(ConsoleModifiers.Control) && key.Key == ConsoleKey.Enter)
+                key = Console.ReadKey(true);
+
+                if (key.Key == ConsoleKey.Escape)
                 {
-                    AnsiConsole.Markup("[yellow]❓ Bạn muốn quay lại trang chính? (Y/N): [/]");
+                    AnsiConsole.Markup("\n[yellow]❓ Bạn muốn quay lại trang trước? (Y/N): [/]");
+
                     var confirm = Console.ReadKey(true);
-                    if (confirm.Key == ConsoleKey.Y)
+                    if (char.ToUpper(confirm.KeyChar) == 'Y')
                     {
-                        AnsiConsole.MarkupLine("\n[green]👋 Đã quay về trang chính![/]");
-                        PauseScreen();
-                        Environment.Exit(0);
+                        Console.WriteLine(); // sạch giao diện
+                        return "__BACK";     // báo hiệu cho hàm gọi xử lý
                     }
                     else
                     {
-                        ShowSuccess("Tiếp tục thao tác...");
+                        Console.WriteLine();
+                        AnsiConsole.MarkupLine("[blue]⏩ Đã hủy. Tiếp tục nhập...[/]");
+                        continue;
                     }
+                }
+                else if (key.Key == ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                    return input.ToString();
+                }
+                else if (key.Key == ConsoleKey.Backspace && input.Length > 0)
+                {
+                    input.Length--;
+                    Console.Write("\b \b");
+                }
+                else if (!char.IsControl(key.KeyChar))
+                {
+                    input.Append(key.KeyChar);
+                    Console.Write(key.KeyChar);
                 }
             }
         }
+
+
+
+
 
         private static void PauseScreen()
         {
@@ -244,27 +440,68 @@ namespace BookStoreConsoleApp.Services
             Console.ReadKey(true);
         }
 
+        // private static string ReadPassword()
+        // {
+        //     string pwd = "";
+        //     ConsoleKeyInfo key;
+        //     do
+        //     {
+        //         key = Console.ReadKey(true);
+        //         if (key.Key == ConsoleKey.Backspace && pwd.Length > 0)
+        //         {
+        //             pwd = pwd[..^1];
+        //             Console.Write("\b \b");
+        //         }
+        //         else if (!char.IsControl(key.KeyChar))
+        //         {
+        //             pwd += key.KeyChar;
+        //             Console.Write("*");
+        //         }
+        //     } while (key.Key != ConsoleKey.Enter);
+        //     Console.WriteLine();
+        //     return pwd;
+        // }
         private static string ReadPassword()
         {
-            string pwd = "";
-            ConsoleKeyInfo key;
-            do
+            var pwd = new StringBuilder();
+            while (true)
             {
-                key = Console.ReadKey(true);
-                if (key.Key == ConsoleKey.Backspace && pwd.Length > 0)
+                var key = Console.ReadKey(true);
+
+                if (key.Key == ConsoleKey.Escape)
                 {
-                    pwd = pwd[..^1];
+                    AnsiConsole.Markup("\n[yellow]❓ Bạn muốn quay lại trang chính? (Y/N): [/] ");
+                    var confirm = Console.ReadKey(true);
+                    if (char.ToUpper(confirm.KeyChar) == 'Y')
+                    {
+                        Console.WriteLine();
+                        return "__BACK";
+                    }
+                    else
+                    {
+                        Console.WriteLine();
+                        AnsiConsole.MarkupLine("[blue]⏩ Tiếp tục nhập mật khẩu...[/]");
+                        continue;
+                    }
+                }
+                else if (key.Key == ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                    return pwd.ToString();
+                }
+                else if (key.Key == ConsoleKey.Backspace && pwd.Length > 0)
+                {
+                    pwd.Length--;
                     Console.Write("\b \b");
                 }
                 else if (!char.IsControl(key.KeyChar))
                 {
-                    pwd += key.KeyChar;
+                    pwd.Append(key.KeyChar);
                     Console.Write("*");
                 }
-            } while (key.Key != ConsoleKey.Enter);
-            Console.WriteLine();
-            return pwd;
+            }
         }
+
 
         private static string HashPassword(string password)
         {

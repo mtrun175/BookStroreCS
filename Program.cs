@@ -20,19 +20,21 @@ class Program
                 DisplayBanner();
                 HomePageService.DisplayHomePage(isLoggedIn, currentUsername);
 
-                // Chọn menu tương ứng trạng thái đăng nhập
                 var menuOptions = isLoggedIn
-                    ? new[] {
+                    ? new[]
+                    {
                         "📚 Xem danh sách sách",
+                        "📝 Lịch sử đặt hàng",
                         "👤 Thông tin tài khoản",
-                        "🔓 Đăng xuất",
-                        "❌ Thoát chương trình"
+                        "🔓 Đăng xuất"
+                        // "❌ Thoát chương trình"
                     }
-                    : new[] {
+                    : new[]
+                    {
                         "📚 Xem danh sách sách",
                         "📝 Đăng ký tài khoản",
-                        "🔐 Đăng nhập",
-                        "❌ Thoát chương trình"
+                        "🔐 Đăng nhập"
+                        // "❌ Thoát chương trình"
                     };
 
                 var choice = AnsiConsole.Prompt(
@@ -47,13 +49,17 @@ class Program
                     switch (choice)
                     {
                         case "📚 Xem danh sách sách":
-                            BookService.DisplayBookList(connectionString);
+                            currentUsername = BookService.DisplayBookList(connectionString, null); // Chưa đăng nhập
+                            isLoggedIn = currentUsername != null;
                             PauseScreen();
                             break;
+
+
                         case "📝 Đăng ký tài khoản":
                             AuthService.Register(connectionString);
                             PauseScreen();
                             break;
+
                         case "🔐 Đăng nhập":
                             var username = AuthService.Login(connectionString);
                             if (username != null)
@@ -66,11 +72,12 @@ class Program
                             {
                                 AnsiConsole.MarkupLine("[red]❌ Đăng nhập thất bại. Vui lòng thử lại.[/]");
                             }
-                            PauseScreen();
+                            //PauseScreen();
                             break;
-                        case "❌ Thoát chương trình":
-                            ExitProgram();
-                            return;
+
+                            // case "❌ Thoát chương trình":
+                            //     ExitProgram();
+                            //     return;
                     }
                 }
                 else
@@ -78,22 +85,49 @@ class Program
                     switch (choice)
                     {
                         case "📚 Xem danh sách sách":
-                            BookService.DisplayBookList(connectionString);
+                            currentUsername = BookService.DisplayBookList(connectionString, currentUsername); // Đã đăng nhập
+                            isLoggedIn = currentUsername != null;
                             PauseScreen();
                             break;
+
+
+                        case "📝 Lịch sử đặt hàng":
+                            OrderHistoryService.ShowOrderHistory(currentUsername, connectionString);
+                            PauseScreen();
+                            break;
+
+
                         case "👤 Thông tin tài khoản":
-                            AuthService.ShowUserInfo(currentUsername!, connectionString);
+                            UserInfoService.ShowUserInfo(currentUsername!, connectionString);
                             PauseScreen();
                             break;
+
                         case "🔓 Đăng xuất":
-                            isLoggedIn = false;
-                            currentUsername = null;
-                            AnsiConsole.MarkupLine("[green]✅ Đăng xuất thành công.[/]");
-                            PauseScreen();
-                            break;
-                        case "❌ Thoát chương trình":
-                            ExitProgram();
-                            return;
+                            {
+                                var confirm = AnsiConsole.Prompt(
+                                    new SelectionPrompt<string>()
+                                        .Title("❓ [yellow]Bạn có chắc chắn muốn đăng xuất không?[/]")
+                                        .AddChoices("✅ Có", "❌ Không"));
+
+                                if (confirm == "✅ Có")
+                                {
+                                    isLoggedIn = false;
+                                    currentUsername = null;
+                                    AnsiConsole.MarkupLine("[green]✅ Đăng xuất thành công.[/]");
+                                }
+                                else
+                                {
+                                    AnsiConsole.MarkupLine("[grey]⏩ Đã hủy lệnh đăng xuất.[/]");
+                                }
+
+                                //PauseScreen();
+                                break;
+                            }
+
+
+                            // case "❌ Thoát chương trình":
+                            //     ExitProgram();
+                            //     return;
                     }
                 }
             }

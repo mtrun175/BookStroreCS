@@ -6,7 +6,7 @@ namespace BookStoreConsoleApp.Services
 {
     public static class DashboardBook
     {
-        public static void ManageBooks(string connectionString)
+        public static void ManageBooks(string connectionString, string? loggedInUser)
         {
             while (true)
             {
@@ -26,7 +26,7 @@ namespace BookStoreConsoleApp.Services
                 switch (input)
                 {
                     case "1":
-                        BookService.DisplayBookList(connectionString);
+                        BookService.DisplayBookList(connectionString, loggedInUser);
                         Console.WriteLine("\nNhấn phím bất kỳ để quay lại...");
                         Console.ReadKey();
                         break;
@@ -182,3 +182,4 @@ namespace BookStoreConsoleApp.Services
         }
     }
 }
+

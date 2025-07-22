@@ -6,7 +6,7 @@ namespace BookStoreConsoleApp.Services
     {
         public static void DisplayHomePage(bool isLoggedIn, string? currentUsername)
         {
-            var title = new FigletText("Book Store")
+            var title = new FigletText("BOOK STORE")
                 .Centered()
                 .Color(Color.Green);
             AnsiConsole.Write(title);

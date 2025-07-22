@@ -1,101 +1,129 @@
 using System;
-using System.Data;
 using MySql.Data.MySqlClient;
 using Spectre.Console;
+using System.Collections.Generic;
 
 namespace BookStoreConsoleApp.Services
 {
     public static class DashboardCustomer
     {
+        private const int PageSize = 10;
+
         public static void ManageCustomers(string connectionString)
         {
+            int currentPage = 1;
+
             while (true)
             {
                 Console.Clear();
-                var title = new FigletText("Customer Manager").Centered().Color(Color.Green);
+                var title = new FigletText("🧾 CUSTOMER MANAGER")
+                    .Centered()
+                    .Color(Color.Teal);
                 AnsiConsole.Write(title);
+                AnsiConsole.Write(new Rule("[deepskyblue1]📦 QUẢN LÝ KHÁCH HÀNG[/]").LeftJustified());
+                // Console.Clear();
+                // AnsiConsole.Write(new FigletText("CUSTOMER MANAGER").Centered().Color(Color.Green));
 
-                AnsiConsole.MarkupLine("[yellow]1. Xem tất cả khách hàng[/]");
-                AnsiConsole.MarkupLine("[yellow]2. Tìm kiếm khách hàng[/]");
-                AnsiConsole.MarkupLine("[yellow]3. Khóa/Mở khóa tài khoản[/]");
-                AnsiConsole.MarkupLine("[yellow]4. Quay lại[/]");
+                var customers = GetCustomers(connectionString, currentPage, out int totalCustomers);
+                int totalPages = (int)Math.Ceiling(totalCustomers / (double)PageSize);
 
-                Console.Write("🔎 Chọn chức năng: ");
-                var input = Console.ReadLine();
+                var table = new Table()
+                    .Title($"[bold yellow underline]📋 DANH SÁCH KHÁCH HÀNG — TRANG {currentPage}/{totalPages}[/]")
+                    .Border(TableBorder.Rounded);
+
+                table.AddColumns("ID", "Họ tên", "Email", "SĐT", "Địa chỉ", "Trạng thái", "Tổng đơn");
+
+                foreach (var c in customers)
+                {
+                    table.AddRow(
+                        c.CustomerID.ToString(),
+                        c.FullName,
+                        c.Email,
+                        c.PhoneNumber,
+                        c.Address,
+                        c.Status == 0 ? "[green]✅ Bình thường[/]" : "[red]⛔ Bị khóa[/]",
+                        c.TotalOrders.ToString()
+                    );
+                }
+
+                AnsiConsole.Write(table);
+
+                AnsiConsole.MarkupLine("\n[bold cyan]Chức năng:[/] ← [green]P[/]revious | [green]N[/]ext → | [green]S[/]earch | [green]L[/]ock/Unlock | [green]Q[/]uit");
+                AnsiConsole.Markup("[yellow]👉 Nhập lựa chọn của bạn: [/]");
+
+                string? input = Console.ReadLine()?.Trim().ToLower();
 
                 switch (input)
                 {
-                    case "1":
-                        DisplayAllCustomers(connectionString);
+                    case "n":
+                        if (currentPage < totalPages) currentPage++;
                         break;
-                    case "2":
+                    case "p":
+                        if (currentPage > 1) currentPage--;
+                        break;
+                    case "s":
                         SearchCustomer(connectionString);
                         break;
-                    case "3":
+                    case "l":
                         ToggleCustomerStatus(connectionString);
                         break;
-                    case "4":
-                        return;
+                    case "q":
+                        if (AnsiConsole.Confirm("❓ Bạn có chắc chắn muốn thoát không?"))
+                            return;
+                        break;
                     default:
-                        AnsiConsole.MarkupLine("[red]❌ Lựa chọn không hợp lệ![/]");
-                        Thread.Sleep(1500);
+                        AnsiConsole.MarkupLine("[red]❌ Lựa chọn không hợp lệ.[/]");
+                        PauseScreen();
                         break;
                 }
             }
         }
 
-        private static void DisplayAllCustomers(string connectionString)
+        private static List<CustomerModel> GetCustomers(string connectionString, int page, out int totalCount)
         {
-            Console.Clear();
-            AnsiConsole.MarkupLine("[bold underline green]Danh sách khách hàng:[/]");
+            var list = new List<CustomerModel>();
+            totalCount = 0;
 
             using var connection = new MySqlConnection(connectionString);
             connection.Open();
 
+            string countQuery = "SELECT COUNT(*) FROM customers";
+            using (var countCmd = new MySqlCommand(countQuery, connection))
+                totalCount = Convert.ToInt32(countCmd.ExecuteScalar());
+
             string query = @"
                 SELECT 
-                    c.CustomerID, c.FullName, c.Email, c.PhoneNumber, c.Address, c.Status, c.created_at,
-                    COUNT(o.OrderID) AS TotalOrders,
-                    SUM(CASE WHEN o.Status = 0 THEN 1 ELSE 0 END) AS CancelledOrders
+                    c.CustomerID, c.FullName, c.Email, c.PhoneNumber, c.Address, c.Status,
+                    (SELECT COUNT(*) FROM orders o WHERE o.CustomerID = c.CustomerID) AS TotalOrders
                 FROM customers c
-                LEFT JOIN orders o ON c.CustomerID = o.CustomerID
-                GROUP BY c.CustomerID";
+                LIMIT @Limit OFFSET @Offset";
 
             using var cmd = new MySqlCommand(query, connection);
+            cmd.Parameters.AddWithValue("@Limit", PageSize);
+            cmd.Parameters.AddWithValue("@Offset", (page - 1) * PageSize);
+
             using var reader = cmd.ExecuteReader();
-
-            var table = new Table();
-            table.AddColumns("ID", "Họ tên", "Email", "SĐT", "Địa chỉ", "Trạng thái", "Tổng đơn", "Đã hủy", "Ngày tạo");
-
-            if (!reader.HasRows)
-            {
-                AnsiConsole.MarkupLine("[red]❌ Không có khách hàng nào trong hệ thống.[/]");
-            }
-
             while (reader.Read())
             {
-                table.AddRow(
-                    reader["CustomerID"].ToString(),
-                    reader["FullName"].ToString(),
-                    reader["Email"].ToString(),
-                    reader["PhoneNumber"].ToString(),
-                    reader["Address"].ToString(),
-                    Convert.ToInt32(reader["Status"]) == 0 ? "✅ Bình thường" : "⛔ Bị khóa",
-                    reader["TotalOrders"].ToString(),
-                    reader["CancelledOrders"].ToString(),
-                    reader["created_at"].ToString()
-                );
+                list.Add(new CustomerModel
+                {
+                    CustomerID = Convert.ToInt32(reader["CustomerID"]),
+                    FullName = reader["FullName"].ToString()!,
+                    Email = reader["Email"].ToString()!,
+                    PhoneNumber = reader["PhoneNumber"].ToString()!,
+                    Address = reader["Address"].ToString()!,
+                    Status = Convert.ToInt32(reader["Status"]),
+                    TotalOrders = Convert.ToInt32(reader["TotalOrders"])
+                });
             }
 
-            AnsiConsole.Write(table);
-            Console.WriteLine("\nNhấn phím bất kỳ để quay lại...");
-            Console.ReadKey();
+            return list;
         }
 
         private static void SearchCustomer(string connectionString)
         {
-            Console.Write("🔍 Nhập tên hoặc email cần tìm: ");
-            string keyword = Console.ReadLine()?.Trim();
+            Console.Clear();
+            string keyword = AnsiConsole.Ask<string>("🔍 Nhập tên hoặc email cần tìm:");
 
             using var connection = new MySqlConnection(connectionString);
             connection.Open();
@@ -107,32 +135,39 @@ namespace BookStoreConsoleApp.Services
 
             using var cmd = new MySqlCommand(query, connection);
             cmd.Parameters.AddWithValue("@kw", $"%{keyword}%");
+
             using var reader = cmd.ExecuteReader();
 
-            var table = new Table();
-            table.AddColumns("ID", "Họ tên", "Email", "SĐT", "Địa chỉ", "Trạng thái");
+            var table = new Table()
+                .Title("[bold yellow]🔍 Kết quả tìm kiếm[/]")
+                .Border(TableBorder.Rounded)
+                .AddColumns("ID", "Họ tên", "Email", "SĐT", "Địa chỉ", "Trạng thái");
 
+            bool found = false;
             while (reader.Read())
             {
+                found = true;
                 table.AddRow(
                     reader["CustomerID"].ToString(),
                     reader["FullName"].ToString(),
                     reader["Email"].ToString(),
                     reader["PhoneNumber"].ToString(),
                     reader["Address"].ToString(),
-                    Convert.ToInt32(reader["Status"]) == 0 ? "✅ Bình thường" : "⛔ Bị khóa"
+                    Convert.ToInt32(reader["Status"]) == 0 ? "[green]✅ Bình thường[/]" : "[red]⛔ Bị khóa[/]"
                 );
             }
 
-            AnsiConsole.Write(table);
-            Console.WriteLine("\nNhấn phím bất kỳ để quay lại...");
-            Console.ReadKey();
+            if (!found)
+                AnsiConsole.MarkupLine("[red]❌ Không tìm thấy khách hàng nào.[/]");
+            else
+                AnsiConsole.Write(table);
+
+            PauseScreen();
         }
 
         private static void ToggleCustomerStatus(string connectionString)
         {
-            Console.Write("🔧 Nhập ID khách hàng cần khóa/mở khóa: ");
-            if (!int.TryParse(Console.ReadLine(), out int customerId)) return;
+            int customerId = AnsiConsole.Ask<int>("🔧 Nhập [cyan]ID khách hàng[/] cần khóa/mở khóa:");
 
             using var connection = new MySqlConnection(connectionString);
             connection.Open();
@@ -145,7 +180,7 @@ namespace BookStoreConsoleApp.Services
             if (statusObj == null)
             {
                 AnsiConsole.MarkupLine("[red]❌ Không tìm thấy khách hàng.[/]");
-                Thread.Sleep(1500);
+                PauseScreen();
                 return;
             }
 
@@ -158,9 +193,26 @@ namespace BookStoreConsoleApp.Services
             updateCmd.Parameters.AddWithValue("@Id", customerId);
             updateCmd.ExecuteNonQuery();
 
-            string message = newStatus == 0 ? "✅ Tài khoản đã được mở khóa (bình thường)." : "⛔ Tài khoản đã bị khóa.";
-            AnsiConsole.MarkupLine($"[green]{message}[/]");
-            Thread.Sleep(2000);
+            string message = newStatus == 0 ? "[green]✅ Tài khoản đã được mở khóa.[/]" : "[red]⛔ Tài khoản đã bị khóa.[/]";
+            AnsiConsole.MarkupLine(message);
+            PauseScreen();
+        }
+
+        private static void PauseScreen()
+        {
+            AnsiConsole.MarkupLine("\n[grey]⏳ Nhấn phím bất kỳ để tiếp tục...[/]");
+            try { Console.ReadKey(true); } catch { }
+        }
+
+        private class CustomerModel
+        {
+            public int CustomerID { get; set; }
+            public string FullName { get; set; } = "";
+            public string Email { get; set; } = "";
+            public string PhoneNumber { get; set; } = "";
+            public string Address { get; set; } = "";
+            public int Status { get; set; }
+            public int TotalOrders { get; set; }
         }
     }
 }

@@ -4,62 +4,93 @@ namespace BookStoreConsoleApp.Services
 {
     public static class DashboardService
     {
-        public static void DisplayDashboard(string connectionString)
+        public static void DisplayDashboard(string connectionString, string? loggedInUser)
         {
             while (true)
             {
                 Console.Clear();
-                // ✅ Sửa lỗi: dùng Color.Blue thay vì Color.Cyan
-                var title = new FigletText("Admin Panel")
-                    .Centered();
+                DisplayBanner();
+                DisplayWelcome(loggedInUser);
 
-                AnsiConsole.Write(title);
+                var menu = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("\n[bold yellow]👉 Chọn chức năng quản trị:[/]")
+                        .PageSize(7)
+                        .AddChoices(new[]
+                        {
+                            "📚 Quản lý sách",
+                            "📦 Quản lý đơn hàng",
+                            "👥 Quản lý khách hàng",
+                            //"🎟️ Quản lý mã giảm giá",
+                            "🚪 Đăng xuất"
+                        }));
 
-                AnsiConsole.MarkupLine("[bold yellow]1.[/] 📚 Quản lý sách");
-                AnsiConsole.MarkupLine("[bold yellow]2.[/] 📦 Quản lý đơn hàng");
-                AnsiConsole.MarkupLine("[bold yellow]3.[/] 👥 Quản lý khách hàng");
-                AnsiConsole.MarkupLine("[bold yellow]4.[/] 🎟️ Quản lý mã giảm giá");
-                AnsiConsole.MarkupLine("[bold yellow]5.[/] 🚪 Đăng xuất");
-
-                Console.Write("\n👉 Chọn chức năng: ");
-                var input = Console.ReadLine()?.Trim();
-
-                switch (input)
+                switch (menu)
                 {
-                    case "1":
+                    case "📚 Quản lý sách":
                         Console.Clear();
-                        BookService.DisplayBookList(connectionString);
-                        Pause();
+                        DashboardBookService.ShowBookDashboard(connectionString);
+                        PauseScreen();
                         break;
-                    case "2":
+
+                    case "📦 Quản lý đơn hàng":
                         Console.Clear();
                         DashboardOrder.ManageOrders(connectionString);
-                        Pause();
+                        PauseScreen();
                         break;
-                    case "3":
+
+                    case "👥 Quản lý khách hàng":
                         Console.Clear();
                         DashboardCustomer.ManageCustomers(connectionString);
-                        Pause();
+                        PauseScreen();
                         break;
-                    case "4":
-                        Console.Clear();
-                        DashboardDiscount.ManageDiscounts(connectionString);
-                        Pause();
-                        break;
-                    case "5":
-                        return; // Đăng xuất
-                    default:
-                        AnsiConsole.MarkupLine("[red]❌ Lựa chọn không hợp lệ![/]");
-                        Thread.Sleep(1500);
+
+                    // case "🎟️ Quản lý mã giảm giá":
+                    //     Console.Clear();
+                    //     DashboardDiscount.ManageDiscounts(connectionString);
+                    //     PauseScreen();
+                    //     break;
+
+                    case "🚪 Đăng xuất":
+                        var confirm = AnsiConsole.Prompt(
+                            new SelectionPrompt<string>()
+                                .Title("❓ [yellow]Bạn có chắc chắn muốn đăng xuất không?[/]")
+                                .AddChoices("✅ Có", "❌ Không"));
+
+                        if (confirm == "✅ Có")
+                            return; // Thoát khỏi dashboard
+                        else
+                        {
+                            AnsiConsole.MarkupLine("[grey]⏩ Đã hủy lệnh đăng xuất.[/]");
+                            Thread.Sleep(1500);
+                        }
                         break;
                 }
             }
         }
 
-        private static void Pause()
+        private static void DisplayBanner()
         {
-            Console.WriteLine("\nNhấn phím bất kỳ để quay lại menu...");
-            Console.ReadKey();
+            var title = new FigletText("ADMIN DASHBOARD")
+                .Centered()
+                .Color(Color.Red);
+            AnsiConsole.Write(title);
+        }
+
+        private static void DisplayWelcome(string? username)
+        {
+            var text = $"[bold green]Xin chào quản trị viên, [underline]{username ?? "Admin"}[/]![/]";
+            var panel = new Panel(text)
+                .Border(BoxBorder.Double)
+                .Padding(1, 1)
+                .Expand();
+            AnsiConsole.Write(panel);
+        }
+
+        private static void PauseScreen()
+        {
+            AnsiConsole.MarkupLine("[grey]\nNhấn phím bất kỳ để quay lại menu...[/]");
+            Console.ReadKey(true);
         }
     }
 }
